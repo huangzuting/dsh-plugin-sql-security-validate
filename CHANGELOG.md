@@ -4,6 +4,25 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-rc.1] - 2026-10-27
+
+Release candidate. The behaviour is what 1.0.0 is intended to ship; this tag
+exists so the plugin can be installed from npm before the API and the
+configuration surface are frozen.
+
+Scope of the candidate:
+
+- Interception of agent-generated SQL through both engines (event waterfall and
+  optional monotonic guard).
+- Blacklist and whitelist modes, with whitelist working fully offline.
+- Per-table governance of schema-discovery statements, so an agent can inspect
+  the tables it may read and not the ones it may not.
+- Subquery coverage across the whole AST rather than a fixed set of fields.
+- Per-turn interception card and a settings panel.
+- 143 assertions across six suites.
+
+Known limitations are listed in [`SECURITY.md`](SECURITY.md#known-boundaries-not-vulnerabilities).
+
 ## [1.0.0] - 2026-10-27
 
 First public release. The security fixes below all landed during internal
@@ -91,4 +110,5 @@ review before publication, so no previously released version is affected.
 See [`SECURITY.md`](SECURITY.md#known-boundaries-not-vulnerabilities) for the
 behaviours that are deliberate rather than defects.
 
+[1.0.0-rc.1]: https://github.com/huangzuting/dsh-plugin-sql-security-validate/releases/tag/v1.0.0-rc.1
 [1.0.0]: https://github.com/huangzuting/dsh-plugin-sql-security-validate/releases/tag/v1.0.0
