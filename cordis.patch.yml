@@ -1,0 +1,64 @@
+# dsh-plugin-sql-security-validate — AI SQL 权限校验拦截插件
+#
+# 一个 Host 行：加载 src/index.js 作为宿主侧插件，注册一个单调守卫
+# （enableStrictGuardMode 打开时）加一个 tools/pre-execute 瀑布监听。
+#
+# 全部安全强锁定能力默认关闭：
+#   - enableStrictGuardMode  企业级单调守卫严格拦截（防多插件覆盖）
+#   - enableAntiUnmount       防卸载保护
+#   - enableBundleRequireLock MCP 插件强依赖校验
+# 默认状态下本插件可随时卸载、无锁定、无强制依赖。
+- insert:
+    - id: sql-security-validate
+      name: dsh-plugin-sql-security-validate
+      config:
+        enable: true
+        auditEnable: true
+        securityMode: blacklist
+        enableStrictGuardMode: false
+        enableAntiUnmount: false
+        enableBundleRequireLock: false
+        sqlParamKeys:
+          - sql
+          - query
+          - statement
+          - text
+          - command
+        targetToolPrefixes:
+          - mcp__
+        includeNonMcpSqlTools: false
+        # 是否允许「不指名表的」结构发现语句（SHOW TABLES / SHOW DATABASES）。
+        # 默认 true：AI 需要先知道有哪些表，才能写出合规查询。
+        # 若表名本身属于机密（强租户隔离），改为 false。
+        allowSchemaDiscovery: true
+        # 是否拒绝解析器无法识别的语句。默认 false：MySQL 有大量历史语法，
+        # 全部拒绝会误伤正常查询。语法面已知可控时再打开。
+        failOnParseError: false
+        # 白名单里的裸表名（如 user）是否可匹配带库名的资源（如 mysql.user）。
+        # 默认 false 保持宽容：grant=user 同时放行 user 与 demo.user，也会放行 mysql.user。
+        # 只授权某个库时，白名单应写「库名.表名」；打开此项则裸表名仅匹配裸名。
+        strictDatabaseQualification: false
+        localBlacklist:
+          tables:
+            - db.admin
+            - db.sensitive_log
+          columns:
+            - db.user.phone
+            - db.user.idcard
+            - db.user.bank_no
+        # 白名单模式的放行名单：纯本地，不需要权限中台。
+        # 切到 whitelist_emulate 后，只有这里列出的资源可访问。
+        localWhitelist:
+          tables: []
+          columns: []
+        remotePolicy:
+          enabled: false
+          policyApiUrl: ''
+          policyApiToken: ''
+          apiTimeoutMs: 3000
+          cacheTtlMs: 30000
+          tenantId: ''
+          userId: ''
+        audit:
+          maxRecords: 5000
+          redactSql: false

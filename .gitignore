@@ -1,0 +1,26 @@
+# Dependencies
+# Only the top level: vendor/node-sql-parser/node_modules/big-integer is
+# RUNTIME CODE and must be committed.
+/node_modules/
+*.tgz
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Test artifacts
+/coverage/
+/tests/.tmp-*
+
+# IMPORTANT: vendor/ must be committed, never ignored.
+# src/sql-parse.js resolves the parser through
+#   createRequire(import.meta.url)('../vendor/node-sql-parser/index.cjs')
+# Ignoring it produces a clone that cannot start, loses offline installability,
+# and removes the parser version from audit.
