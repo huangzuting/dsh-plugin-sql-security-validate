@@ -13,14 +13,14 @@
     "chatbi"
   ],
   "icon": "icon.svg",
-  "author": "TODO: YOUR NAME <641694064@qq.com>",
+  "author": "huangzuting <641694064@qq.com>",
   "repository": {
     "type": "git",
-    "url": "TODO: git+https://github.com/<your-account>/dsh-plugin-sql-security-validate.git"
+    "url": "git+https://github.com/huangzuting/dsh-plugin-sql-security-validate.git"
   },
-  "homepage": "TODO: https://github.com/<your-account>/dsh-plugin-sql-security-validate#readme",
+  "homepage": "https://github.com/huangzuting/dsh-plugin-sql-security-validate#readme",
   "bugs": {
-    "url": "TODO: https://github.com/<your-account>/dsh-plugin-sql-security-validate/issues"
+    "url": "https://github.com/huangzuting/dsh-plugin-sql-security-validate/issues"
   },
   "publishConfig": {
     "access": "public"

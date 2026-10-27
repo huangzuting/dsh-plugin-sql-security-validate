@@ -91,4 +91,4 @@ review before publication, so no previously released version is affected.
 See [`SECURITY.md`](SECURITY.md#known-boundaries-not-vulnerabilities) for the
 behaviours that are deliberate rather than defects.
 
-[1.0.0]: https://github.com/TODO-ACCOUNT/dsh-plugin-sql-security-validate/releases/tag/v1.0.0
+[1.0.0]: https://github.com/huangzuting/dsh-plugin-sql-security-validate/releases/tag/v1.0.0

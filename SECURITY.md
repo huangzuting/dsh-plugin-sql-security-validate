@@ -17,7 +17,7 @@ privately — a bypass disclosed in a public issue is a bypass in the wild.
 Use either channel:
 
 - GitHub private vulnerability reporting:
-  `TODO: https://github.com/<your-account>/dsh-plugin-sql-security-validate/security/advisories/new`
+  https://github.com/huangzuting/dsh-plugin-sql-security-validate/security/advisories/new
 - Email: <641694064@qq.com>
 
 Please include:
