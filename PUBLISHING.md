@@ -34,12 +34,12 @@ Copyright (c) 2026 [COPYRIGHT HOLDER]
 ```bash
 # 方式一：Personal Access Token（推荐，最小权限：repo）
 # 在 https://github.com/settings/tokens 生成，勾选 repo
-git remote add origin https://<TOKEN>@github.com/<account>/dsh-plugin-sql-security-validate.git
+git remote add origin https://<TOKEN>@github.com/huangzuting/dsh-plugin-sql-security-validate.git
 
 # 方式二：SSH key（无需 token）
 ssh-keygen -t ed25519 -C "641694064@qq.com"
 # 把 ~/.ssh/id_ed25519.pub 内容贴到 https://github.com/settings/keys
-git remote add origin git@github.com:<account>/dsh-plugin-sql-security-validate.git
+git remote add origin git@github.com:huangzuting/dsh-plugin-sql-security-validate.git
 
 git push -u origin main
 ```
