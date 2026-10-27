@@ -186,6 +186,7 @@ procedure.
 ## 9. Development
 
 ```bash
+pnpm install                         # only needed for the engine and panel suites
 node tests/unit.mjs                  # parser, policy, remote client (49)
 node tests/report-vectors.mjs        # first-round security vectors (15)
 node tests/subquery-vectors.mjs      # subquery positions (26)
@@ -195,6 +196,10 @@ node tests/panel.mjs                 # settings panel and turn card (15)
 ```
 
 143 assertions total. `npm test` runs all six in order.
+
+The parser, policy, and vector suites have no dependencies — they run on a bare
+clone. `engine.mjs` imports `src/index.js`, which needs
+`@deepseek-ai/schemastery`, so `pnpm install` is required before the last two.
 
 ### Layout
 
