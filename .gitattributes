@@ -1,0 +1,19 @@
+# Keep text working-tree line endings stable across platforms.
+* text=auto
+
+# The vendored parser is a byte-for-byte copy of the published artifact.
+# Git's autocrlf must not rewrite its line endings, or the copy silently stops
+# matching upstream and the provenance claim in vendor/README.md becomes false.
+vendor/** -text
+vendor/node-sql-parser/index.cjs -text
+vendor/node-sql-parser/lib/** -text
+vendor/node-sql-parser/ast/** -text
+vendor/node-sql-parser/node_modules/** -text
+
+# Documentation and source are ordinary text.
+*.md text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.mjs text eol=lf
+*.js text eol=lf
+LICENSE text eol=lf
