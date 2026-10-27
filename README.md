@@ -176,7 +176,7 @@ These are design decisions, not defects. `SECURITY.md` explains the reasoning.
 `node-sql-parser` 5.4.0 lives under `vendor/` (2.77 MB, Apache-2.0) instead of
 being an npm dependency. The published package is 88 MB, of which about 87 MB is
 browser bundles, alternate builds, and source maps that never load at runtime.
-Vendoring keeps the plugin at 2.82 MB, pins the exact parser version inside the
+Vendoring keeps the plugin at 2.76 MB, pins the exact parser version inside the
 repository so it is auditable, and lets the plugin install offline.
 
 The trade-off: **upstream security fixes do not arrive automatically.** See

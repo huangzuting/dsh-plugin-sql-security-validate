@@ -65,7 +65,7 @@ npm view dsh-plugin-sql-security-validate
 ```bash
 pnpm install
 npm test          # 期望 143 passed, 0 failed
-npm pack --dry-run  # 期望 ~2.82 MB
+npm pack --dry-run  # 期望 ~2.76 MB
 ```
 
 `grep -rn "TODO"` 无输出即表示可以发布。
