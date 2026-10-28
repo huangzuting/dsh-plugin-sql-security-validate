@@ -50,7 +50,10 @@
   "scripts": {
     "test": "node tests/unit.mjs && node tests/report-vectors.mjs && node tests/subquery-vectors.mjs && node tests/qualification-vectors.mjs && node tests/engine.mjs && node tests/panel.mjs"
   },
-  "dependencies": {
+  "peerDependencies": {
+    "@deepseek-ai/schemastery": "^3.18.4"
+  },
+  "devDependencies": {
     "@deepseek-ai/schemastery": "^3.18.4"
   },
   "dsh": {
