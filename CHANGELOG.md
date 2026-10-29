@@ -58,6 +58,12 @@ Fixes two bypasses reported in review, plus a third found while verifying them.
   optimizer hints, and a quoted comment marker. Each case was checked against a
   real MySQL 8.0.46 server before being written as an expectation.
 
+- `tests/differential/` — a harness that treats the database as the oracle. It
+  asks `performance_schema` which tables a statement actually read and requires
+  the extractor to name at least those, so an obfuscation the server accepts is
+  caught whether or not anyone thought to write it down. Opt-in (`npm run
+  test:differential`), because CI has no MySQL; see its README for setup.
+
 ## [1.0.0-rc.1] - 2026-10-27
 
 Release candidate. The behaviour is what 1.0.0 is intended to ship; this tag

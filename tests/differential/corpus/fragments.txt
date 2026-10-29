@@ -1,0 +1,20 @@
+# Fragments, not statements. Each is embedded in a template by the runner.
+#
+# These exercise the opposite risk from the statement corpus: a payload sitting
+# inside a string literal must NOT create a phantom table. Reporting one would be
+# a false positive — the plugin would refuse a statement that reads nothing it
+# should not.
+#
+# One fragment per line; a literal \n is expanded to a newline.
+
+' OR 1=1 --
+' OR '1'='1
+" OR "1"="1
+'); DROP TABLE forbidden_table; --
+1' UNION SELECT secret FROM forbidden_table --
+1' AND (SELECT COUNT(*) FROM forbidden_table) > 0 --
+\x27 OR 1=1 --
+\xbf\x27 OR 1=1 --
+%27 OR 1=1 --
+1' /*!50000 OR 1=1 */
+1' -- comment only

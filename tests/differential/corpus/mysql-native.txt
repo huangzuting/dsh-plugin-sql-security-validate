@@ -1,0 +1,38 @@
+# Statements that touch `forbidden_table`, written the way MySQL accepts them.
+# One statement per line; a literal \n is expanded to a newline so single-line
+# comments can be expressed. Lines starting with # are comments.
+#
+# Every entry here was chosen because the server may or may not treat it the way
+# a straightforward parser would. The harness records what the server does.
+
+SELECT * FROM forbidden_table
+/*!50000 SELECT * FROM forbidden_table */
+/*!50000SELECT*/ * FROM forbidden_table
+/*! SELECT * FROM forbidden_table */
+(SELECT * FROM forbidden_table)
+((SELECT * FROM forbidden_table))
+;SELECT * FROM forbidden_table
+;;SELECT * FROM forbidden_table
+SELECT/*!50000 * */FROM forbidden_table
+/* note */ SELECT * FROM forbidden_table
+-- note\nSELECT * FROM forbidden_table
+# note\nSELECT * FROM forbidden_table
+/*+ MAX_EXECUTION_TIME(1000) */ SELECT * FROM forbidden_table
+SELECT * FROM `forbidden_table`
+SELECT * FROM FORBIDDEN_TABLE
+SELECT * FROM sqlguard_probe.forbidden_table
+SELECT id FROM allowed_table UNION SELECT id FROM forbidden_table
+SELECT * FROM allowed_table WHERE id IN (SELECT id FROM forbidden_table)
+SELECT (SELECT COUNT(*) FROM forbidden_table) FROM allowed_table
+SELECT * FROM allowed_table a JOIN forbidden_table f ON f.id = a.id
+SELECT * FROM allowed_table WHERE EXISTS (SELECT 1 FROM forbidden_table)
+WITH x AS (SELECT * FROM forbidden_table) SELECT * FROM x
+SELECT id FROM allowed_table ORDER BY (SELECT COUNT(*) FROM forbidden_table)
+SELECT CASE WHEN (SELECT COUNT(*) FROM forbidden_table) > 0 THEN 1 ELSE 0 END FROM allowed_table
+SELECT * FROM allowed_table WHERE id BETWEEN (SELECT MIN(id) FROM forbidden_table) AND 3
+SELECT secret FROM forbidden_table
+SELECT * FROM allowed_table WHERE id > (SELECT MIN(id) FROM forbidden_table)
+SELECT * FROM allowed_table a, forbidden_table f WHERE a.id = f.id
+SELECT * FROM allowed_table LIMIT 1
+SELECT COUNT(*) FROM allowed_table
+SELECT * FROM allowed_table ORDER BY id
