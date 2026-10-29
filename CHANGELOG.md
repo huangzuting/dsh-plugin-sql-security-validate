@@ -4,6 +4,60 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-rc.2] - 2026-10-29
+
+Fixes two bypasses reported in review, plus a third found while verifying them.
+
+### Security
+
+- Fixed `SELECT *` reading a column the blacklist forbids. The extractor dropped
+  `*` rather than treating it as "every column", so the forbidden column was
+  never in the compared set and the statement was allowed. A projection of `*`
+  is now refused when a column rule governs one of the tables it covers, naming
+  the expansion as `<table>.*` in the refusal. `COUNT(*)` is unaffected: it is
+  an aggregate over a star argument and reveals no column value.
+
+- Fixed a leading SQL comment skipping the check entirely. Candidate detection
+  anchored on the first word of the argument, so `/* note */ SELECT …` and
+  `-- note⏎SELECT …` were never recognised as SQL and therefore never judged.
+  Leading `--`, `#` and `/* */` are now stripped before the keyword test and
+  before parsing. Comments inside a statement were already handled by the
+  parser and are unchanged.
+
+- Fixed an unterminated block comment being treated as a statement prefix: text
+  after it is still commented, so nothing after it is judged, and it is no
+  longer mistaken for SQL.
+
+- Fixed MySQL **executable comments** escaping judgment. `/*! … */` and
+  `/*!50000 … */` are run by the server, but were stripped as ordinary
+  comments, so the statement vanished from the extractor's view while MySQL
+  executed it — including the form where the comment supplies the keyword
+  itself (`/*!50000SELECT*/ …`). Their bodies are now expanded before parsing,
+  quote-aware so a marker inside a string literal is left alone.
+
+- Fixed a **parenthesised statement** being skipped. `(SELECT …)` is valid MySQL
+  and failed the keyword test, so it was never judged.
+
+- Fixed **leading empty statements** being skipped: `;SELECT …` runs on the
+  server and was ignored by the extractor.
+
+### Fixed
+
+- Aliases are now resolved back to their tables, so `SELECT u.* FROM user u` is
+  attributed to `user` instead of the alias.
+
+### Added
+
+- `tests/review-9968.mjs` (19 assertions) covering both reported bypasses,
+  their comment variants, and the non-regressions: `COUNT(*)`, explicit safe
+  column lists, and `*` on tables no column rule governs.
+
+- `tests/obfuscation-vectors.mjs` (17 assertions) covering forms where MySQL and
+  the extractor could disagree: executable comments, parenthesised statements,
+  leading semicolons, BOM and exotic whitespace, comments between keywords,
+  optimizer hints, and a quoted comment marker. Each case was checked against a
+  real MySQL 8.0.46 server before being written as an expectation.
+
 ## [1.0.0-rc.1] - 2026-10-27
 
 Release candidate. The behaviour is what 1.0.0 is intended to ship; this tag
@@ -110,5 +164,6 @@ review before publication, so no previously released version is affected.
 See [`SECURITY.md`](SECURITY.md#known-boundaries-not-vulnerabilities) for the
 behaviours that are deliberate rather than defects.
 
+[1.0.0-rc.2]: https://github.com/huangzuting/dsh-plugin-sql-security-validate/releases/tag/v1.0.0-rc.2
 [1.0.0-rc.1]: https://github.com/huangzuting/dsh-plugin-sql-security-validate/releases/tag/v1.0.0-rc.1
 [1.0.0]: https://github.com/huangzuting/dsh-plugin-sql-security-validate/releases/tag/v1.0.0

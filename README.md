@@ -155,6 +155,16 @@ Two properties are deliberate:
   columns, the security mode, and the policy source, so the model can correct
   itself instead of retrying blindly.
 
+On what a statement is judged by:
+
+- **A `*` projection is refused when a column rule governs one of the tables it
+  covers.** There is no column list to compare, so the statement cannot be shown
+  to exclude the forbidden column; the refusal names it as `<table>.*`. `COUNT(*)`
+  is not this case — it is an aggregate and reveals no column value.
+- **Leading comments are stripped before judging.** A statement may open with
+  `--`, `#` or `/* */`; the comment carries no semantics and must not change the
+  verdict.
+
 ## 7. Known boundaries
 
 These are design decisions, not defects. `SECURITY.md` explains the reasoning.

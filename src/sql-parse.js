@@ -61,13 +61,135 @@ const SQL_START = /^\s*(?:select|with|insert|update|delete|replace|merge|create|
 const SQL_BODY = /^\s*(?:select|with|insert|update|delete|replace|merge|create|drop|alter|truncate|rename|grant|revoke|analyze|optimize|repair|check|load|copy|begin|start|commit|rollback|savepoint|call|set|use|prepare|execute|deallocate|lock|unlock)\b/i
 
 /**
+ * Rewrite MySQL executable comments into the code they run.
+ *
+ * MySQL runs the body of `/*! … *\/` (optionally version-gated, as in
+ * `/*!50000 … *\/`). Treating it as an ordinary comment is a bypass: the
+ * statement disappears from the extractor's view while the server executes it.
+ * Several obfuscations are built on exactly this, including
+ * `/*!50000SELECT*\/ …` where the comment supplies the keyword itself.
+ *
+ * The scan is quote-aware so a `/*!` inside a string literal is left alone.
+ * Ordinary comments and optimizer hints (`/*+ … *\/`) are preserved verbatim.
+ *
+ * @param text candidate text
+ * @returns the text with executable comments replaced by their bodies
+ */
+function expandExecutableComments(text) {
+  let out = ''
+  let index = 0
+  let quote = ''
+  while (index < text.length) {
+    const char = text[index]
+    if (quote !== '') {
+      out += char
+      // Backslash escapes apply inside '…' and "…" but not inside `…`.
+      if (char === '\\' && quote !== '`') {
+        out += text[index + 1] ?? ''
+        index += 2
+        continue
+      }
+      if (char === quote) quote = ''
+      index += 1
+      continue
+    }
+    if (char === "'" || char === '"' || char === '`') {
+      quote = char
+      out += char
+      index += 1
+      continue
+    }
+    if (char === '/' && text[index + 1] === '*') {
+      const end = text.indexOf('*/', index + 2)
+      // Unterminated: the rest is still inside the comment.
+      if (end === -1) return out
+      if (text[index + 2] === '!') {
+        // Drop the optional version gate; what follows it is the SQL body.
+        out += ` ${text.slice(index + 3, end).replace(/^\d+/, '')} `
+      } else {
+        out += text.slice(index, end + 2)
+      }
+      index = end + 2
+      continue
+    }
+    out += char
+    index += 1
+  }
+  return out
+}
+
+/**
+ * Strip leading whitespace, comments and empty statements.
+ *
+ * A statement may open with `-- …`, `# …`, `/* … *\/` or a stray `;`. The SQL
+ * keyword test anchors on the first word, so without this the statement was
+ * unrecognisable — and an unrecognised statement is not judged at all, which
+ * turned a comment into a way past every policy.
+ *
+ * Only LEADING noise is removed. Comments inside the statement are left for the
+ * parser, which handles them.
+ *
+ * @param text candidate text
+ * @returns the text with leading whitespace, comments and `;` removed
+ */
+function stripLeadingNoise(text) {
+  let rest = text.trimStart()
+  for (;;) {
+    if (rest.startsWith(';')) {
+      rest = rest.slice(1).trimStart()
+      continue
+    }
+    if (rest.startsWith('--') || rest.startsWith('#')) {
+      const newline = rest.indexOf('\n')
+      // A line comment with no newline after it leaves no statement to inspect.
+      if (newline === -1) return ''
+      rest = rest.slice(newline + 1).trimStart()
+      continue
+    }
+    if (rest.startsWith('/*')) {
+      const end = rest.indexOf('*/', 2)
+      // An unterminated block comment: everything after it is still commented.
+      if (end === -1) return ''
+      rest = rest.slice(end + 2).trimStart()
+      continue
+    }
+    return rest
+  }
+}
+
+/**
+ * The view used only to decide whether text is SQL at all.
+ *
+ * Distinct from {@link stripLeadingNoise} because a leading `(` is meaningful to
+ * the parser — `(SELECT …)` is valid MySQL — so it is dropped here for the
+ * keyword test only, never from what gets parsed.
+ *
+ * @param text candidate text
+ * @returns text beginning with the statement keyword, or empty
+ */
+function keywordView(text) {
+  let rest = expandExecutableComments(text)
+  for (;;) {
+    rest = rest.trimStart()
+    if (rest.startsWith(';') || rest.startsWith('(')) {
+      rest = rest.slice(1)
+      continue
+    }
+    const stripped = stripLeadingNoise(rest)
+    if (stripped === rest) return rest
+    rest = stripped
+    if (rest === '') return ''
+  }
+}
+
+/**
  * Decide whether a string is plausibly a SQL statement rather than prose that
  * happens to open with the same word.
  * @param text candidate text
  * @returns whether to hand it to the parser
  */
 function looksLikeSql(text) {
-  const trimmed = text.trim()
+  const trimmed = keywordView(text)
   // A statement keyword followed by anything other than an article reads as SQL.
   if (SQL_BODY.test(trimmed)) return true
   // `describe`, `desc`, `show`, `explain`: require a real target after the
@@ -177,7 +299,26 @@ function collectNode(node, out, bound = new Set()) {
           const name = qualify(entry.db, entry.table)
           if (name !== '') out.tables.add(name)
         }
+        // Remember the alias so `u.*` can be traced back to the table it covers.
+        if (typeof entry.as === 'string' && entry.as !== '') {
+          out.aliasToTable.set(bare(entry.as), qualify(entry.db, entry.table))
+        }
       }
+    }
+  }
+
+  // A projection of `*` exposes every column of the tables it covers, so a
+  // column-level rule cannot be shown to hold. `COUNT(*)` is NOT this: it is an
+  // `aggr_func` whose argument is a `star` node, and it reveals no column value,
+  // so only a `column_ref` named `*` in the projection list counts.
+  if (Array.isArray(node.columns)) {
+    for (const item of node.columns) {
+      const expr = item === null || typeof item !== 'object' ? undefined : item.expr
+      if (expr === null || typeof expr !== 'object') continue
+      if (expr.type !== 'column_ref' || expr.column !== '*') continue
+      const alias = typeof expr.table === 'string' ? bare(expr.table) : ''
+      if (alias === '') out.starAll = true
+      else out.starAliases.add(alias)
     }
   }
 
@@ -270,9 +411,14 @@ function collectChildren(node, out, bound) {
  */
 export function parseSql(sql) {
   const text = typeof sql === 'string' ? sql : ''
-  const trimmed = text.trim()
+  // Executable comments are expanded first: MySQL runs their body, so what is
+  // judged must be what runs. Leading comments are then dropped because they
+  // carry no semantics and break keyword anchoring. The original text is what
+  // callers log; only the shape is judged from the normalised form.
+  const normalized = expandExecutableComments(text)
+  const trimmed = stripLeadingNoise(normalized)
   if (trimmed === '') {
-    return { isSql: false, kind: '', statementKinds: [], mutating: false, metadata: false, tables: [], columns: [] }
+    return { isSql: false, kind: '', statementKinds: [], mutating: false, metadata: false, tables: [], columns: [], star: false, starTables: [] }
   }
 
   let ast
@@ -340,13 +486,33 @@ export function parseSql(sql) {
   }
 
   const statements = Array.isArray(ast) ? ast : [ast]
-  const out = { tables: new Set(), columns: new Set(), kind: '', statements: new Set() }
+  const out = {
+    tables: new Set(),
+    columns: new Set(),
+    kind: '',
+    statements: new Set(),
+    /** Set when a projection is a bare `*`, which expands to every column. */
+    starAll: false,
+    /** Aliases a `t.*` projection names, resolved against `aliasToTable`. */
+    starAliases: new Set(),
+    /** `FROM user u` → { u: 'user' }, so `u.*` can be traced to its table. */
+    aliasToTable: new Map(),
+  }
   for (const statement of statements) collectNode(statement, out)
 
   // A metadata statement may name its target only inside a predicate literal.
   if (out.tables.size === 0) {
     const literal = literalTarget(trimmed)
     if (literal !== undefined) out.tables.add(bare(literal))
+  }
+
+  // Which tables a `*` projection actually covers. An unqualified `*` covers
+  // every table the statement reads; `u.*` covers the one `u` names.
+  const starTables = new Set()
+  if (out.starAll) for (const table of out.tables) starTables.add(table)
+  for (const alias of out.starAliases) {
+    const resolved = out.aliasToTable.get(alias)
+    starTables.add(resolved === undefined || resolved === '' ? alias : resolved)
   }
 
   const kinds = [...out.statements].filter(entry => entry !== '')
@@ -358,6 +524,8 @@ export function parseSql(sql) {
     metadata: kinds.some(entry => METADATA_KINDS.has(entry)),
     tables: [...out.tables].sort(),
     columns: [...out.columns].sort(),
+    star: starTables.size > 0,
+    starTables: [...starTables].sort(),
   }
 }
 

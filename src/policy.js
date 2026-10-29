@@ -186,6 +186,28 @@ export class Policy {
   }
 
   /**
+   * Which column entries govern a given table.
+   *
+   * A column entry is `…table.column`, so its owner is everything before the
+   * last segment. Matching is the same tolerant dotted comparison used
+   * everywhere else: `db.user` and `user` both reach each other.
+   *
+   * @param table the table a statement reads.
+   * @param entries column-level policy entries.
+   * @returns the entries that govern `table`.
+   */
+  static columnRulesFor(table, entries) {
+    const hits = []
+    for (const entry of Policy.listOf(entries)) {
+      const parts = entry.split('.')
+      if (parts.length < 2) continue
+      const owner = parts.slice(0, -1).join('.')
+      if (Policy.coveredBy(table, [owner]) || Policy.coveredBy(owner, [table])) hits.push(entry)
+    }
+    return hits
+  }
+
+  /**
    * Decide one parsed SQL statement.
    * @param parsed result of {@link parseSql}.
    * @returns outcome plus the exact refused resources and the policy entries
@@ -199,6 +221,9 @@ export class Policy {
       const columns = parsed.columns.filter(column => !Policy.columnGranted(
         column, parsed.tables, this.grantedColumns, this.grantedTables, this.strictDatabaseQualification,
       ))
+      // In whitelist mode a table grant already admits all of its columns, so a
+      // `*` projection stays inside the grant. Only the blacklist below needs
+      // the star check.
       return {
         allowed: tables.length === 0 && columns.length === 0,
         forbiddenTables: tables,
@@ -210,6 +235,19 @@ export class Policy {
     }
     const tables = parsed.tables.filter(table => Policy.coveredBy(table, this.forbiddenTables))
     const columns = parsed.columns.filter(column => Policy.columnCovered(column, parsed.tables, this.forbiddenColumns))
+    /**
+     * A `*` projection returns every column of the tables it covers, so there is
+     * no explicit column list to compare against a column rule. It cannot be
+     * shown to exclude the forbidden column, so the statement is refused —
+     * otherwise `SELECT *` would read a column the policy forbids.
+     */
+    if (parsed.star === true) {
+      for (const table of parsed.starTables ?? []) {
+        if (Policy.columnRulesFor(table, this.forbiddenColumns).length === 0) continue
+        const marker = `${table}.*`
+        if (!columns.includes(marker)) columns.push(marker)
+      }
+    }
     /** The concrete entries that fired, distinct from the resources they refused. */
     const matchedRules = []
     for (const table of tables) {
